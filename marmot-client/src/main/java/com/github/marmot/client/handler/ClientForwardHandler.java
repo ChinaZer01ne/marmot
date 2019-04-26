@@ -3,6 +3,7 @@ package com.github.marmot.client.handler;
 
 import com.alibaba.fastjson.JSONObject;
 import com.github.marmot.client.config.ClientConfig;
+import com.github.marmot.constant.MarnotConst;
 import com.github.marmot.protocol.ProtocolType;
 import com.github.marmot.protocol.NetProtocol;
 import io.netty.bootstrap.Bootstrap;
@@ -25,8 +26,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtocol> {
 
+    /** 保存本地连接（到web程序的channel） */
     private  Map<String,Channel> localConnectMap = new ConcurrentHashMap<>();
+    /** 用户客户端配置*/
     private static final Map<String, String> config = ClientConfig.getUserConfig();
+    /** 重试次数 */
     private int retryCount = 0;
 
     @Override
@@ -38,33 +42,11 @@ public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtoco
             System.err.println("客户端链接中");
             byte[] data = msg.getData();
             String status = new String(data, CharsetUtil.UTF_8);
-
-            if ("fail".equals(status)){
-                /**
-                 * 重试或者关闭所有链接   TODO
-                 */
-
-                if (retryCount < 3){
-
-                    NetProtocol protocol = new NetProtocol();
-                    protocol.setType(ProtocolType.INIT);
-                    protocol.setChannelId(ctx.channel().id().asLongText());
-                    //Map<String, String> config = ClientConfig.getUserConfig();
-                    String configJson = JSONObject.toJSONString(config);
-                    protocol.setData(configJson.getBytes());
-                    System.out.println("客户端通道已激活");
-                    ctx.channel().writeAndFlush(protocol);
-                    retryCount++;
-                }else {
-                    System.out.println("链接服务端失败");
-                    //ctx.executor().shutdownGracefully();
-                    //ctx.executor().parent().shutdownGracefully();
-                    ctx.channel().eventLoop().shutdownGracefully();
-                    ctx.channel().eventLoop().parent().shutdownGracefully();
-                }
-
-                System.out.println("客户端链接失败");
-            }else if ("success".equals(status)){
+            //如果失败则重试
+            if (MarnotConst.FAIL.equals(status)){
+                initRetry(ctx);
+            }else if (MarnotConst.SUCCESS.equals(status)){
+                //TODO 成功应该做什么呢？
                 System.out.println("客户端链接成功");
             }
 
@@ -107,6 +89,30 @@ public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtoco
         }
 
     }
+
+    /** 初始化失败重试 */
+    private void initRetry(ChannelHandlerContext ctx) {
+        //重试或者关闭所有链接
+
+        if (retryCount < ClientConfig.FAIL_RETRY_COUNT){
+
+            NetProtocol protocol = new NetProtocol();
+            protocol.setType(ProtocolType.INIT);
+            protocol.setChannelId(ctx.channel().id().asLongText());
+            String configJson = JSONObject.toJSONString(config);
+            protocol.setData(configJson.getBytes());
+            System.out.println("客户端通道已激活");
+            ctx.channel().writeAndFlush(protocol);
+            retryCount++;
+        }else {
+            System.out.println("链接服务端失败");
+            ctx.channel().eventLoop().shutdownGracefully();
+            ctx.channel().eventLoop().parent().shutdownGracefully();
+        }
+
+        System.out.println("客户端链接失败");
+    }
+
     /**
      * Http的CONNECTED请求发起时，建立内网通向程序的通道
      */
@@ -131,7 +137,7 @@ public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtoco
             if (future.isSuccess()) {
                 // TODO 有可能没有连接成功，数据就过来了
                 localConnectMap.put(msg.getChannelId(),future.channel());
-                System.out.println("已连接程序访问端口：" + requestPort);
+                System.out.println("已连接程序访问端口 -> " + requestPort);
             } else {
                 localConnectMap.remove(msg.getChannelId());
                 future.channel().close();

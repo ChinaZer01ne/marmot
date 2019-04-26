@@ -32,6 +32,8 @@ public class ClientConfig {
             TimeUnit.SECONDS,
             new LinkedBlockingQueue<>(),new DefaultThreadFactory("connect-build-thread-"));
 
+
+    public static final int FAIL_RETRY_COUNT = 3;
     /** 用户配置信息*/
     private static Map<String,String> configMap;
 

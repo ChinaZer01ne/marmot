@@ -1,5 +1,6 @@
 package com.github.marmot.client;
 
+import com.github.marmot.client.config.ClientConfig;
 import com.github.marmot.client.handler.ClientForwardHandler;
 import com.github.marmot.protocol.ProtoclDecoder;
 import com.github.marmot.protocol.ProtoclEncoder;
@@ -13,7 +14,9 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Map;
 
 /**
  * @author Zer01ne
@@ -21,8 +24,14 @@ import java.net.InetSocketAddress;
  * @version 1.0
  */
 public class MarmotClient {
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, IOException {
 
+        //读取用户配置
+        Map<String, String> configMap = ClientConfig.readAttr();
+        String ipAndPort = configMap.get("ipAndPort");
+        String[] remote = ipAndPort.split(":");
+
+        //开启客户端
         EventLoopGroup workerGroup = new NioEventLoopGroup();
 
         try {
@@ -37,8 +46,8 @@ public class MarmotClient {
                     pipeline.addLast(new ClientForwardHandler());
                 }
             });
-            ChannelFuture channelFuture = bootstrap.connect(new InetSocketAddress(8888)).sync();
-            System.err.println("已连接服务器转发端口：8888");
+            ChannelFuture channelFuture = bootstrap.connect(new InetSocketAddress(remote[0],Integer.valueOf(remote[1]))).sync();
+            System.err.println("已连接服务器地址 -> " + ipAndPort);
             channelFuture.channel().closeFuture().sync();
         }finally {
             workerGroup.shutdownGracefully();
