@@ -1,6 +1,7 @@
 package com.github.marmot.client.handler;
 
 
+import com.alibaba.fastjson.JSONObject;
 import com.github.marmot.client.config.ClientConfig;
 import com.github.marmot.protocol.ProtocolType;
 import com.github.marmot.protocol.NetProtocol;
@@ -25,6 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtocol> {
 
     private  Map<String,Channel> localConnectMap = new ConcurrentHashMap<>();
+    private static final Map<String, String> config = ClientConfig.getUserConfig();
+    private int retryCount = 0;
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, NetProtocol msg) throws Exception {
@@ -35,10 +38,34 @@ public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtoco
             System.err.println("客户端链接中");
             byte[] data = msg.getData();
             String status = new String(data, CharsetUtil.UTF_8);
+
             if ("fail".equals(status)){
                 /**
                  * 重试或者关闭所有链接   TODO
                  */
+
+                if (retryCount < 3){
+
+                    NetProtocol protocol = new NetProtocol();
+                    protocol.setType(ProtocolType.INIT);
+                    protocol.setChannelId(ctx.channel().id().asLongText());
+                    //Map<String, String> config = ClientConfig.getUserConfig();
+                    String configJson = JSONObject.toJSONString(config);
+                    protocol.setData(configJson.getBytes());
+                    System.out.println("客户端通道已激活");
+                    ctx.channel().writeAndFlush(protocol);
+                    retryCount++;
+                }else {
+                    System.out.println("链接服务端失败");
+                    //ctx.executor().shutdownGracefully();
+                    //ctx.executor().parent().shutdownGracefully();
+                    ctx.channel().eventLoop().shutdownGracefully();
+                    ctx.channel().eventLoop().parent().shutdownGracefully();
+                }
+
+                System.out.println("客户端链接失败");
+            }else if ("success".equals(status)){
+                System.out.println("客户端链接成功");
             }
 
         } else if (msg.getType() == ProtocolType.CONNECTED){
