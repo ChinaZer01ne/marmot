@@ -39,42 +39,19 @@ public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtoco
 
 
         if (msg.getType() == ProtocolType.INIT_STATUS){
-            System.err.println("客户端链接中");
-            byte[] data = msg.getData();
-            String status = new String(data, CharsetUtil.UTF_8);
-            //如果失败则重试
-            if (MarnotConst.FAIL.equals(status)){
-                initRetry(ctx);
-            }else if (MarnotConst.SUCCESS.equals(status)){
-                //TODO 成功应该做什么呢？
-                System.out.println("客户端链接成功");
-            }
+            //处理初始化结果
+            HandleInitResult(ctx, msg);
 
         } else if (msg.getType() == ProtocolType.CONNECTED){
             //连接建立需要打开内网转发端口到程序端口的通道
-            connectSuccess(ctx,msg);
+            buildConnect(ctx,msg);
             System.err.println("内网Http链接通道正在建立。。。");
 
         } else if (msg.getType() == ProtocolType.DATA){
 
             System.out.println("客户端接收到用户请求！");
-            //有可能连接还没放到map中，数据就过来了,等待连接建立
-            if (localConnectMap.get(msg.getChannelId()) != null){
-
-                localConnectMap.get(msg.getChannelId()).writeAndFlush(msg.getData());
-
-            }else {
-                System.out.println("连接尚未建立！");
-                // 这里使用线程池，采用任务队列应该会更好，不过正常使用应该没有多少队列产生
-                ClientConfig.threadPool.execute(() -> {
-                    while (true){
-                        if (localConnectMap.get(msg.getChannelId()) != null){
-                            localConnectMap.get(msg.getChannelId()).writeAndFlush(msg.getData());
-                            break;
-                        }
-                    }
-                });
-            }
+            //处理用户请求
+            handleUserRequest(msg);
 
 
         }else if(msg.getType() == ProtocolType.DISCONNECTED){
@@ -89,6 +66,22 @@ public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtoco
         }
 
     }
+
+
+    /** 处理初始化结果 */
+    private void HandleInitResult(ChannelHandlerContext ctx, NetProtocol msg) {
+        System.err.println("客户端链接中");
+        byte[] data = msg.getData();
+        String status = new String(data, CharsetUtil.UTF_8);
+        //如果失败则重试
+        if (MarnotConst.FAIL.equals(status)){
+            initRetry(ctx);
+        }else if (MarnotConst.SUCCESS.equals(status)){
+            //TODO 成功应该做什么呢？
+            System.out.println("客户端链接成功");
+        }
+    }
+
 
     /** 初始化失败重试 */
     private void initRetry(ChannelHandlerContext ctx) {
@@ -116,7 +109,7 @@ public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtoco
     /**
      * Http的CONNECTED请求发起时，建立内网通向程序的通道
      */
-    private void connectSuccess(ChannelHandlerContext ctx, NetProtocol msg) throws InterruptedException {
+    private void buildConnect(ChannelHandlerContext ctx, NetProtocol msg) throws InterruptedException {
 
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(ctx.channel().eventLoop()).channel(NioSocketChannel.class).handler(new ChannelInitializer<SocketChannel>() {
@@ -146,6 +139,28 @@ public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtoco
         });
 
     }
+
+    /** 处理用户请求 */
+    private void handleUserRequest(NetProtocol msg) {
+        //有可能连接还没放到map中，数据就过来了,等待连接建立
+        if (localConnectMap.get(msg.getChannelId()) != null){
+
+            localConnectMap.get(msg.getChannelId()).writeAndFlush(msg.getData());
+
+        }else {
+            System.out.println("连接尚未建立！");
+            // 这里使用线程池，采用任务队列应该会更好，不过正常使用应该没有多少队列产生
+            ClientConfig.threadPool.execute(() -> {
+                while (true){
+                    if (localConnectMap.get(msg.getChannelId()) != null){
+                        localConnectMap.get(msg.getChannelId()).writeAndFlush(msg.getData());
+                        break;
+                    }
+                }
+            });
+        }
+    }
+
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
