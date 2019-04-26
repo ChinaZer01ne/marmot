@@ -3,6 +3,7 @@ package com.github.marmot.server;
 
 import com.github.marmot.protocol.ProtoclDecoder;
 import com.github.marmot.protocol.ProtoclEncoder;
+import com.github.marmot.server.config.ServerConfig;
 import com.github.marmot.server.handler.ServerForwardHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -15,6 +16,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
 
+import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 /**
  * @author Zer01ne
@@ -22,7 +25,12 @@ import java.util.concurrent.TimeUnit;
  * @version 1.0
  */
 public class MarmotServer {
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, IOException {
+
+        //读取用户配置
+        Map<String, String> configMap = ServerConfig.readAttr();
+        //程序运行端口
+        int workPort = Integer.parseInt(configMap.get("workPort"));
 
         EventLoopGroup bossGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
@@ -44,8 +52,8 @@ public class MarmotServer {
                     pipeline.addLast(new ServerForwardHandler());
                 }
             });
-            ChannelFuture outerChannelFuture = outerServerBootstrap.bind(8888).sync();
-            System.err.println("外网转发端口已开启，监听：8888");
+            ChannelFuture outerChannelFuture = outerServerBootstrap.bind(workPort).sync();
+            System.err.println("外网转发端口已开启，监听 -> " + workPort);
 
             outerChannelFuture.channel().closeFuture().sync();
         }finally {
