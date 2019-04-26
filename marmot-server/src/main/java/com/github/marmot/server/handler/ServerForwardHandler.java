@@ -1,6 +1,7 @@
 package com.github.marmot.server.handler;
 import com.github.marmot.protocol.ProtocolType;
 import com.github.marmot.protocol.NetProtocol;
+import com.github.marmot.server.config.ServerConfig;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
@@ -66,7 +67,11 @@ public class ServerForwardHandler extends SimpleChannelInboundHandler<NetProtoco
             }
         });
 
-        serverBootstrap.bind(10000).addListener(new ChannelFutureListener() {
+        //公网映射访问端口
+        Map<String, String> userConfig = ServerConfig.getUserConfig();
+        int requestPort = Integer.parseInt(userConfig.get("requestPort"));
+
+        serverBootstrap.bind(requestPort).addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 if (future.isSuccess()){
