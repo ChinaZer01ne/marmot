@@ -1,6 +1,7 @@
 package com.github.marmot.client.handler;
 
 
+import com.github.marmot.client.config.ClientConfig;
 import com.github.marmot.protocol.ProtocolType;
 import com.github.marmot.protocol.NetProtocol;
 import io.netty.bootstrap.Bootstrap;
@@ -55,19 +56,15 @@ public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtoco
 
             }else {
                 System.out.println("连接尚未建立！");
-                //TODO 这里使用线程池，采用任务队列应该会更好，不过正常使用应该没有多少队列产生
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        while (true){
-                            if (localConnectMap.get(msg.getChannelId()) != null){
-                                localConnectMap.get(msg.getChannelId()).writeAndFlush(msg.getData());
-                                break;
-                            }
+                // 这里使用线程池，采用任务队列应该会更好，不过正常使用应该没有多少队列产生
+                ClientConfig.threadPool.execute(() -> {
+                    while (true){
+                        if (localConnectMap.get(msg.getChannelId()) != null){
+                            localConnectMap.get(msg.getChannelId()).writeAndFlush(msg.getData());
+                            break;
                         }
                     }
-                }).start();
-
+                });
             }
 
 
