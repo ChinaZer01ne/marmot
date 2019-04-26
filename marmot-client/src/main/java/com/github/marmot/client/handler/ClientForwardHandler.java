@@ -125,11 +125,13 @@ public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtoco
             }
         });
 
-        bootstrap.connect(new InetSocketAddress("localhost", 9090)).addListener((ChannelFutureListener) (future) -> {
+        //用户配置本机地址
+        int requestPort = Integer.parseInt(config.get("requestPort"));
+        bootstrap.connect(new InetSocketAddress("localhost", requestPort)).addListener((ChannelFutureListener) (future) -> {
             if (future.isSuccess()) {
                 // TODO 有可能没有连接成功，数据就过来了
                 localConnectMap.put(msg.getChannelId(),future.channel());
-                System.out.println("已连接程序访问端口：9090");
+                System.out.println("已连接程序访问端口：" + requestPort);
             } else {
                 localConnectMap.remove(msg.getChannelId());
                 future.channel().close();
@@ -144,6 +146,11 @@ public class ClientForwardHandler extends SimpleChannelInboundHandler<NetProtoco
         NetProtocol protocol = new NetProtocol();
         protocol.setType(ProtocolType.INIT);
         protocol.setChannelId(ctx.channel().id().asLongText());
+
+        // 增加认证功能
+        String configJson = JSONObject.toJSONString(config);
+        protocol.setData(configJson.getBytes());
+
         System.out.println("客户端通道已激活");
         ctx.channel().writeAndFlush(protocol);
     }
