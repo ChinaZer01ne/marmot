@@ -1,6 +1,6 @@
 package com.github.marmot.client.access;
 
-import com.github.marmot.access.Input;
+import com.github.marmot.access.ConfigCollector;
 
 import java.io.*;
 import java.util.Collections;
@@ -9,13 +9,13 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 终端输入界面
+ * 客户端终端配置读取
  *
  * @author Zer01ne
  * @version 1.0
  * @date 2019/4/25 11:15
  */
-public class ClientTeminalReadImpl implements Input {
+public class ClientTerminalReadImpl implements ConfigCollector {
 
     private static Map<String,String> configMap = new HashMap<>(8);
 
@@ -30,9 +30,9 @@ public class ClientTeminalReadImpl implements Input {
         bufferedWriter.write("请输入远程主机映射地址：\n");
         bufferedWriter.flush();
         Optional<String> ipAndPort = Optional.of(bufferedReader.readLine());
-        while (!ipAndPort.isPresent() || !ipAndPort.get().matches(IP_PORT_PATTERN)){
+        while (!ipAndPort.get().matches(IP_PORT_PATTERN)){
             try {
-                throw  new Exception("请指定远程主机映射地址：\n");
+                throw new Exception("请指定远程主机映射地址：\n");
             } catch (Exception e) {
                 e.printStackTrace();
                 bufferedWriter.write("请输入远程主机映射地址：\n");

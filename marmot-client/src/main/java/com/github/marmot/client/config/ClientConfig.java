@@ -1,7 +1,7 @@
 package com.github.marmot.client.config;
 
-import com.github.marmot.access.Input;
-import com.github.marmot.client.access.ClientTeminalReadImpl;
+import com.github.marmot.access.ConfigCollector;
+import com.github.marmot.client.access.ClientTerminalReadImpl;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
@@ -37,13 +37,13 @@ public class ClientConfig {
     /** 用户配置信息*/
     private static Map<String,String> configMap;
 
-    private static Input input;
+    private static ConfigCollector configCollector;
 
     /** 读取用户配置信息 */
     public static Map<String,String> readAttr() throws IOException {
 
-        input = new ClientTeminalReadImpl();
-        configMap = input.readUserAttr();
+        configCollector = new ClientTerminalReadImpl();
+        configMap = configCollector.readUserAttr();
         return configMap;
     }
 

@@ -1,6 +1,6 @@
 package com.github.marmot.server.access;
 
-import com.github.marmot.access.Input;
+import com.github.marmot.access.ConfigCollector;
 
 import java.io.*;
 import java.util.Collections;
@@ -9,11 +9,12 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
+ * 服务端终端配置读取
  * @author Zer01ne
  * @version 1.0
  * @date 2019/4/25 13:38
  */
-public class ServerTeminalReadImpl implements Input {
+public class ServerTerminalReadImpl implements ConfigCollector {
 
 
     private static Map<String,String> configMap = new HashMap<>(8);
@@ -29,18 +30,18 @@ public class ServerTeminalReadImpl implements Input {
 
         bufferedWriter.write("内网映射访问端口：\n");
         bufferedWriter.flush();
-        Optional<String> requestPort = Optional.of(bufferedReader.readLine());
-        while (!requestPort.isPresent() || !requestPort.get().matches(PORT_PATTERN)){
+        String requestPort = bufferedReader.readLine();
+        while (requestPort.matches(PORT_PATTERN)){
             try {
                 throw  new Exception("内网映射访问端口：\n");
             } catch (Exception e) {
                 e.printStackTrace();
                 bufferedWriter.write("内网映射访问端口：\n");
                 bufferedWriter.flush();
-                requestPort = Optional.of(bufferedReader.readLine());
+                requestPort = bufferedReader.readLine();
             }
         }
-        requestPort.ifPresent(s -> configMap.put("requestPort",s));
+        configMap.put("requestPort",requestPort);
 
         bufferedWriter.write("请输入运行端口号：\n");
         bufferedWriter.flush();
