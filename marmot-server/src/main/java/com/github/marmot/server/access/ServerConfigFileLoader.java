@@ -27,31 +27,32 @@ public class ServerConfigFileLoader implements ConfigCollector {
     }
 
     private Map<String, String> read() {
-
-        Map<String, String> config = new HashMap<>(8);
-
-        File configFile = new File("C:\\Project\\marmot\\marmot-server\\src\\main\\java\\com\\github\\marmot\\server\\config\\marmot.conf");
-        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(configFile))) {
-            String configItem = null;
-            while ((configItem = bufferedReader.readLine()) != null){
-                // 读到注释或者空行的情况
-                if (configItem.startsWith("#") || configItem.trim().length() == 0){
-                    continue;
-                }
-                String[] configLine = configItem.trim().split(" ");
-                if (configLine.length < 2){
-                    throw new RuntimeException(String.format("No config defined, check marmot.conf near %s\n", configLine[configLine.length - 1]));
-                }
-                config.put(configLine[0],configLine[1]);
-            }
-
-        }catch (IOException e){
-            throw new RuntimeException("Could not find marmot.conf file or no permission!");
-        }
-
-
-
-        return Objects.equals(config.get("Switch"),"on") ? config : null;
+        return loadLocalConfig();
+        //Map<String, String> config = new HashMap<>(8);
+        //
+        //File configFile = new File("C:\\Project\\marmot\\marmot-server\\src\\main\\java\\com\\github\\marmot\\server\\config\\marmot.conf");
+        //try (BufferedReader bufferedReader = new BufferedReader(new FileReader(configFile))) {
+        //    String configItem = null;
+        //    while ((configItem = bufferedReader.readLine()) != null){
+        //        // 读到注释或者空行的情况
+        //        if (configItem.startsWith("#") || configItem.trim().length() == 0){
+        //            continue;
+        //        }
+        //        String[] configLine = configItem.trim().split(" ");
+        //        if (configLine.length < 2){
+        //            throw new RuntimeException(String.format("No config defined, check marmot.conf near %s\n", configLine[configLine.length - 1]));
+        //        }
+        //        config.put(configLine[0],configLine[1]);
+        //    }
+        //
+        //}catch (IOException e){
+        //    System.out.println("Could not find marmot.conf file or no permission!");
+        //    return null;
+        //}
+        //
+        //
+        //
+        //return Objects.equals(config.get("Switch"),"on") ? config : null;
     }
 
 

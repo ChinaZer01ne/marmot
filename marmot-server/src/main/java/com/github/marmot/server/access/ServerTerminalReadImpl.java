@@ -30,35 +30,35 @@ public class ServerTerminalReadImpl implements ConfigCollector {
 
         bufferedWriter.write("内网映射访问端口：\n");
         bufferedWriter.flush();
-        String requestPort = bufferedReader.readLine();
-        while (requestPort.matches(PORT_PATTERN)){
+        String accessPort = bufferedReader.readLine();
+        while (accessPort.matches(PORT_PATTERN)){
             try {
                 throw  new Exception("内网映射访问端口：\n");
             } catch (Exception e) {
                 e.printStackTrace();
                 bufferedWriter.write("内网映射访问端口：\n");
                 bufferedWriter.flush();
-                requestPort = bufferedReader.readLine();
+                accessPort = bufferedReader.readLine();
             }
         }
-        configMap.put("requestPort",requestPort);
+        configMap.put("AccessPort",accessPort);
 
         bufferedWriter.write("请输入运行端口号：\n");
         bufferedWriter.flush();
-        Optional<String> workPort = Optional.of(bufferedReader.readLine());
-        String port = workPort.filter(s -> s.matches(PORT_PATTERN)).orElse(DEFAULT_PORT);
-        configMap.put("workPort",port);
+        Optional<String> proxyPort = Optional.of(bufferedReader.readLine());
+        String port = proxyPort.filter(s -> s.matches(PORT_PATTERN)).orElse(DEFAULT_PORT);
+        configMap.put("ProxyPort",port);
 
 
         bufferedWriter.write("请输入用户名：\n");
         bufferedWriter.flush();
         Optional<String> username = Optional.of(bufferedReader.readLine());
-        username.ifPresent(s -> configMap.put("username",s));
+        username.ifPresent(s -> configMap.put("User",s));
 
         bufferedWriter.write("请输入密码：\n");
         bufferedWriter.flush();
         Optional<String> password = Optional.of(bufferedReader.readLine());
-        password.ifPresent(s -> configMap.put("password",s));
+        password.ifPresent(s -> configMap.put("Password",s));
 
         return Collections.unmodifiableMap(configMap);
     }

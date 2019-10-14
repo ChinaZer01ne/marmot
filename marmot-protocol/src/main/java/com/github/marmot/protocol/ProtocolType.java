@@ -19,7 +19,11 @@ public enum ProtocolType {
     /**
      * Http数据传输
      * */
-    DATA(5);
+    DATA(5),
+    /**
+     * 心跳包
+     * */
+    HEARTBEATS(6);
 
     private int code;
 

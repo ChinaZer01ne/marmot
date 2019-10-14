@@ -5,6 +5,7 @@ import com.github.marmot.protocol.ProtoclDecoder;
 import com.github.marmot.protocol.ProtoclEncoder;
 import com.github.marmot.server.config.ServerConfig;
 import com.github.marmot.server.handler.ServerForwardHandler;
+import com.github.marmot.server.task.ClientScanner;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -30,7 +31,7 @@ public class MarmotServer {
         //读取用户配置
         Map<String, String> configMap = ServerConfig.readAttr();
         //程序运行端口
-        int workPort = Integer.parseInt(configMap.get("workPort"));
+        int proxyPort = Integer.parseInt(configMap.get("ProxyPort"));
 
         EventLoopGroup bossGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
@@ -52,8 +53,12 @@ public class MarmotServer {
                     pipeline.addLast(new ServerForwardHandler());
                 }
             });
-            ChannelFuture outerChannelFuture = outerServerBootstrap.bind(workPort).sync();
-            System.err.println("外网转发端口已开启，监听 -> " + workPort);
+            ChannelFuture outerChannelFuture = outerServerBootstrap.bind(proxyPort).sync();
+            System.err.println("外网转发端口已开启，监听 -> " + proxyPort);
+
+            // 开启客户端扫描线程，定时扫描下线客户端
+            ServerConfig.threadPool.submit(new ClientScanner());
+            System.err.println("客户端扫描线程已开启");
 
             outerChannelFuture.channel().closeFuture().sync();
         }finally {

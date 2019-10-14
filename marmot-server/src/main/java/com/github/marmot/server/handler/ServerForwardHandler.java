@@ -10,9 +10,13 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.bytes.ByteArrayEncoder;
 import io.netty.handler.timeout.IdleStateEvent;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * 内网客户端连接的端口处理器
  * @author Zer01ne
@@ -21,7 +25,14 @@ import java.util.Objects;
  */
 public class ServerForwardHandler extends SimpleChannelInboundHandler<NetProtocol> {
 
-
+    /**
+     * 保存到内网客户端的通道
+     */
+    private static final Map<String,Channel> CLIENT_CHANNEL_MAP = new ConcurrentHashMap<>();
+    /**
+     * 保存到内网客户端的通道的活跃时间
+     */
+    public static final Map<String,Long> CLIENT_ACTIVE_TIME = new ConcurrentHashMap<>();
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, NetProtocol protocol) throws Exception {
 
@@ -44,8 +55,33 @@ public class ServerForwardHandler extends SimpleChannelInboundHandler<NetProtoco
             }
 
         }
+        else if (type == ProtocolType.HEARTBEATS){
+            pong(channelHandlerContext, protocol);
+        }
 
     }
+
+    private void pong(ChannelHandlerContext ctx, NetProtocol heartPack) {
+        byte[] data = heartPack.getData();
+        Map<String,String> heartbeats = JSONObject.parseObject(data, Map.class);
+
+        if ("PING".equals(heartbeats.get("HeartType"))){
+            System.out.println("服务端收到Ping心跳包，PONG~");
+            NetProtocol pongPack = new NetProtocol();
+            pongPack.setType(ProtocolType.HEARTBEATS);
+            pongPack.setChannelId(ctx.channel().id().asLongText());
+            Map<String,String> pongStatus = new HashMap<>(5);
+            pongStatus.put("HeartType","PONG");
+            pongStatus.put("ActiveTime", String.valueOf(System.currentTimeMillis()));
+            pongPack.setData(JSONObject.toJSONBytes(pongStatus));
+            ctx.writeAndFlush(pongPack);
+        }else {
+            System.out.println("服务端收到PONG心跳包");
+            // 记录客户端活跃时间
+            CLIENT_ACTIVE_TIME.put(ctx.channel().id().asLongText(), Long.parseLong(heartbeats.get("ActiveTime")));
+        }
+    }
+
     /** 初始化Channel*/
     private void initChannel(ChannelHandlerContext channelHandlerContext, NetProtocol protocol) throws InterruptedException {
 
@@ -55,6 +91,8 @@ public class ServerForwardHandler extends SimpleChannelInboundHandler<NetProtoco
 
         //保存客户端管道
         Channel clientChannel = channelHandlerContext.channel();
+
+        CLIENT_CHANNEL_MAP.put(clientChannel.id().asLongText(),clientChannel);
 
         System.err.println("客户端管道已注册");
 
@@ -74,13 +112,13 @@ public class ServerForwardHandler extends SimpleChannelInboundHandler<NetProtoco
 
         //公网映射访问端口
         Map<String, String> userConfig = ServerConfig.getUserConfig();
-        int requestPort = Integer.parseInt(userConfig.get("requestPort"));
+        int accessPort = Integer.parseInt(userConfig.get("AccessPort"));
 
-        serverBootstrap.bind(requestPort).addListener(new ChannelFutureListener() {
+        serverBootstrap.bind(accessPort).addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 if (future.isSuccess()){
-                    System.err.println("外网请求端口已开启，监听 -> " + requestPort);
+                    System.err.println("外网请求端口已开启，监听 -> " + accessPort);
 
                     //返回客户端注册成功，然后客户端需要连接内网程序访问端口了
                     NetProtocol registerStatus = new NetProtocol();
@@ -105,11 +143,11 @@ public class ServerForwardHandler extends SimpleChannelInboundHandler<NetProtoco
             authMap = JSONObject.parseObject(new String(auth), Map.class);
         }catch (Exception e){
             e.printStackTrace();
-            System.out.println("认证失败");
+            System.out.println("认证失败，访问者：" + channelHandlerContext.channel().remoteAddress());
         }
         Map<String, String> configMap = ServerConfig.getUserConfig();
-        String serverUsername = configMap.get("username");
-        String serverPassword = configMap.get("password");
+        String serverUsername = configMap.get("User");
+        String serverPassword = configMap.get("Password");
 
         NetProtocol registerStatus = new NetProtocol();
         registerStatus.setType(ProtocolType.INIT_STATUS);
@@ -118,12 +156,12 @@ public class ServerForwardHandler extends SimpleChannelInboundHandler<NetProtoco
 
         //有账号密码
         if (serverUsername != null && serverPassword != null
-                && authMap.get("username") != null && authMap.get("password") != null){
-            if (!Objects.equals(authMap.get("username"), serverUsername)
-                    || !Objects.equals(authMap.get("password"), serverPassword)){
+                && authMap.get("User") != null && authMap.get("Password") != null){
+            if (!Objects.equals(authMap.get("User"), serverUsername)
+                    || !Objects.equals(authMap.get("Password"), serverPassword)){
 
                 registerStatus.setData("fail".getBytes());
-                System.err.println("服务器验证失败！");
+                System.err.println("服务器验证失败！访问者：" + channelHandlerContext.channel().remoteAddress());
                 channelHandlerContext.channel().writeAndFlush(registerStatus);
             }
 
@@ -131,7 +169,7 @@ public class ServerForwardHandler extends SimpleChannelInboundHandler<NetProtoco
 
             //无账号密码
             if (serverUsername == null && serverPassword == null
-                    && authMap.get("username") == null && authMap.get("password") == null){
+                    && authMap.get("User") == null && authMap.get("Password") == null){
 
                 //Client and Server have no username and password , nothing to do
 
@@ -151,7 +189,24 @@ public class ServerForwardHandler extends SimpleChannelInboundHandler<NetProtoco
             IdleStateEvent event = (IdleStateEvent) evt;
             switch (event.state()){
                 case READER_IDLE:
-                    System.out.println("读空闲");
+                    System.out.println("读空闲" + ctx);
+                    NetProtocol pingPack = new NetProtocol();
+                    pingPack.setChannelId(ctx.channel().id().asLongText());
+                    pingPack.setType(ProtocolType.HEARTBEATS);
+                    //pingPack.setData("PING".getBytes());
+                    Map<String,String> heatbeats = new HashMap<>(3);
+                    heatbeats.put("HeartType","PING");
+                    pingPack.setData(JSONObject.toJSONBytes(heatbeats));
+                    // 向所有客户端发送PING包
+                    if (CLIENT_CHANNEL_MAP.containsKey(ctx.channel().id().asLongText())){
+                        ctx.channel().writeAndFlush(pingPack);
+                    }
+                    //CLIENT_CHANNEL_MAP.forEach((s, channel) -> {
+                    //    System.out.println("读空闲" + channel);
+                    //    pingPack.setChannelId(channel.id().asLongText());
+                    //    channel.writeAndFlush(pingPack);
+                    //});
+
                     break;
                 case WRITER_IDLE:
                     System.out.println("写空闲");

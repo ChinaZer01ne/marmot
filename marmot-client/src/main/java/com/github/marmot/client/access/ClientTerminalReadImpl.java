@@ -40,33 +40,33 @@ public class ClientTerminalReadImpl implements ConfigCollector {
                 ipAndPort = Optional.of(bufferedReader.readLine());
             }
         }
-        ipAndPort.ifPresent(s -> configMap.put("ipAndPort",s));
+        ipAndPort.ifPresent(s -> configMap.put("RelayServer",s));
 
         bufferedWriter.write("请输入本地程序访问端口号：\n");
         bufferedWriter.flush();
-        Optional<String>  requestPort = Optional.of(bufferedReader.readLine());
-        while (!requestPort.isPresent() || !requestPort.get().matches(PORT_PATTERN)){
+        Optional<String>  localProgramPort = Optional.of(bufferedReader.readLine());
+        while (!localProgramPort.isPresent() || !localProgramPort.get().matches(PORT_PATTERN)){
             try {
                 throw  new Exception("请输入本地程序访问端口号：\n");
             } catch (Exception e) {
                 e.printStackTrace();
                 bufferedWriter.write("请输入本地程序访问端口号：\n");
                 bufferedWriter.flush();
-                requestPort = Optional.of(bufferedReader.readLine());
+                localProgramPort = Optional.of(bufferedReader.readLine());
             }
         }
-        requestPort.ifPresent(s -> configMap.put("requestPort",s));
+        localProgramPort.ifPresent(s -> configMap.put("LocalProgramPort",s));
 
 
         bufferedWriter.write("请输入用户名：\n");
         bufferedWriter.flush();
         Optional<String> username = Optional.of(bufferedReader.readLine());
-        username.ifPresent(s -> configMap.put("username",s));
+        username.ifPresent(s -> configMap.put("User",s));
 
         bufferedWriter.write("请输入密码：\n");
         bufferedWriter.flush();
         Optional<String> password = Optional.of(bufferedReader.readLine());
-        password.ifPresent(s -> configMap.put("password",s));
+        password.ifPresent(s -> configMap.put("Password",s));
 
         return Collections.unmodifiableMap(configMap);
     }

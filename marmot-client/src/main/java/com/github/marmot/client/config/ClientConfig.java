@@ -1,6 +1,7 @@
 package com.github.marmot.client.config;
 
 import com.github.marmot.access.ConfigCollector;
+import com.github.marmot.client.access.ClientConfigFileLoader;
 import com.github.marmot.client.access.ClientTerminalReadImpl;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -42,8 +43,12 @@ public class ClientConfig {
     /** 读取用户配置信息 */
     public static Map<String,String> readAttr() throws IOException {
 
-        configCollector = new ClientTerminalReadImpl();
+        configCollector = new ClientConfigFileLoader();
         configMap = configCollector.readUserAttr();
+        if (configMap == null){
+            configCollector = new ClientTerminalReadImpl();
+            configMap = configCollector.readUserAttr();
+        }
         return configMap;
     }
 
